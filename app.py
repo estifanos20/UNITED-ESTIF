@@ -407,25 +407,20 @@ def logout():
 
 @app.route("/profile")
 def profile():
-
     if "user_id" not in session:
         return redirect(url_for("login"))
 
     conn = db()
-
-    user = conn.execute("""
-    SELECT * FROM users
-    WHERE id=?
-    """, (
-        session["user_id"],
-    )).fetchone()
-
+    user = conn.execute(
+        "SELECT * FROM users WHERE id = ?",
+        (session["user_id"],)
+    ).fetchone()
     conn.close()
 
-    return render_template(
-        "profile.html",
-        user=user
-    )
+    if user is None:
+        return redirect(url_for("login"))
+
+    return render_template("profile.html", user=user)
 
 
 # =========================

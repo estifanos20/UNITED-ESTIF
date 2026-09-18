@@ -1,1 +1,349 @@
+<!doctype html>
+<html lang="en">
 
+<head>
+
+<meta name="viewport"
+      content="width=device-width,initial-scale=1">
+
+<title>My Bets | UNITED ESTIF</title>
+
+<link rel="stylesheet"
+      href="/static/style.css">
+
+<style>
+
+.ticket{
+  background:#111820;
+  border:1px solid #263442;
+  border-radius:18px;
+  padding:18px;
+  margin:15px 0;
+}
+
+.ticket-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.ticket-id{
+  color:#00d084;
+  font-weight:bold;
+}
+
+.pending{
+  color:#f5c542;
+  font-weight:bold;
+}
+
+.match{
+  font-size:18px;
+  font-weight:bold;
+  margin:15px 0;
+}
+
+.info{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.info div{
+  background:#18232e;
+  padding:12px;
+  border-radius:10px;
+}
+
+.label{
+  display:block;
+  font-size:12px;
+  opacity:.65;
+  margin-bottom:4px;
+}
+
+.value{
+  font-weight:bold;
+}
+
+.empty{
+  text-align:center;
+  padding:40px 20px;
+  opacity:.7;
+}
+
+.demo{
+  font-size:12px;
+  opacity:.65;
+}
+
+.back{
+  display:inline-block;
+  margin-bottom:15px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<header>
+
+<div class="brand">
+UNITED <span>ESTIF</span>
+</div>
+
+<nav>
+
+<a href="/">Home</a>
+
+<a href="/live">
+🔴 Live
+</a>
+
+<a href="/search">
+🔎 Search
+</a>
+
+<a href="/profile">
+Profile
+</a>
+
+<a href="/my-bets">
+🎫 My Bets
+</a>
+
+</nav>
+
+</header>
+
+
+<main>
+
+
+<a class="back" href="/">
+← Home
+</a>
+
+
+<section class="hero">
+
+<div>
+
+<small>
+BETTING ACCOUNT
+</small>
+
+<h1>
+🎫 My Bets
+</h1>
+
+<p>
+Your demo betting tickets
+</p>
+
+</div>
+
+<div class="ball">
+🎫
+</div>
+
+</section>
+
+
+<p class="demo">
+⚠️ DEMO ONLY — no real money is involved.
+</p>
+
+
+{% if bets %}
+
+
+{% for bet in bets %}
+
+<div class="ticket">
+
+
+<div class="ticket-head">
+
+<div>
+
+<span class="ticket-id">
+{{ bet.ticket }}
+</span>
+
+</div>
+
+<div class="pending">
+{{ bet.status }}
+</div>
+
+</div>
+
+
+<div class="match">
+
+{{ bet.home }}
+
+<span> vs </span>
+
+{{ bet.away }}
+
+</div>
+
+
+<div class="info">
+
+
+<div>
+
+<span class="label">
+Selection
+</span>
+
+<span class="value">
+{{ bet.selection }}
+</span>
+
+</div>
+
+
+<div>
+
+<span class="label">
+Odds
+</span>
+
+<span class="value">
+{{ "%.2f"|format(bet.odds) }}
+</span>
+
+</div>
+
+
+<div>
+
+<span class="label">
+Stake
+</span>
+
+<span class="value">
+ETB {{ "%.2f"|format(bet.stake) }}
+</span>
+
+</div>
+
+
+<div>
+
+<span class="label">
+Potential Return
+</span>
+
+<span class="value">
+ETB {{ "%.2f"|format(bet.potential_return) }}
+</span>
+
+</div>
+
+
+<div>
+
+<span class="label">
+League
+</span>
+
+<span class="value">
+{{ bet.league }}
+</span>
+
+</div>
+
+
+<div>
+
+<span class="label">
+Match Status
+</span>
+
+<span class="value">
+{{ bet.match_status }}
+</span>
+
+</div>
+
+
+</div>
+
+
+</div>
+
+{% endfor %}
+
+
+{% else %}
+
+
+<div class="empty">
+
+<h2>
+🎫 No Bets Yet
+</h2>
+
+<p>
+Open a match and select an outcome
+to create your first demo ticket.
+</p>
+
+<br>
+
+<a class="cta" href="/">
+⚽ Browse Matches
+</a>
+
+</div>
+
+
+{% endif %}
+
+
+</main>
+
+
+<nav class="bottom">
+
+<a href="/">
+🏠
+<small>Home</small>
+</a>
+
+<a href="/live">
+🔴
+<small>Live</small>
+</a>
+
+<a href="/search">
+🔎
+<small>Search</small>
+</a>
+
+<a href="/my-bets">
+🎫
+<small>My Bets</small>
+</a>
+
+<a href="/profile">
+👤
+<small>Profile</small>
+</a>
+
+</nav>
+
+
+</body>
+
+  </html>

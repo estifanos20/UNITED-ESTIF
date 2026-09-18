@@ -1,1 +1,511 @@
-<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><title>Match Center</title><link rel=stylesheet href=/static/style.css><header><div class=brand>UNITED <span>ESTIF</span></div><nav><a href="/">Home</a><a href=/live>Live</a></nav></header><main><section class=hero><div><small>{{m.league}} · {{m.status}}</small><h1>{{m.home}} vs {{m.away}}</h1><p>Score: <b>{{m.hs}} — {{m.aws}}</b> · Minute: {{m.minute}}'</p></div></section><h2>⚽ Markets</h2><div class=grid><div class=card>1X2<br>Home <b>{{m.hodd}}</b><br>Draw <b>{{m.draw}}</b><br>Away <b>{{m.aodd}}</b></div><div class=card>Double Chance<br>1X <b>1.30</b><br>X2 <b>1.35</b><br>12 <b>1.25</b></div><div class=card>Total Goals<br>Over 1.5 <b>1.28</b><br>Over 2.5 <b>1.85</b><br>Under 2.5 <b>1.90</b></div><div class=card>BTTS<br>Yes <b>1.72</b><br>No <b>1.95</b></div></div></main>
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{m.home}} vs {{m.away}} | UNITED ESTIF</title>
+<link rel="stylesheet" href="/static/style.css">
+
+<style>
+.betbox{
+  margin-top:20px;
+  padding:20px;
+  border-radius:18px;
+  background:#111820;
+  border:1px solid #263442;
+}
+
+.market{
+  margin-bottom:20px;
+}
+
+.market h3{
+  margin-bottom:10px;
+}
+
+.oddbtn{
+  width:100%;
+  padding:13px;
+  margin:5px 0;
+  border:1px solid #344555;
+  border-radius:12px;
+  background:#18232e;
+  color:white;
+  cursor:pointer;
+  display:flex;
+  justify-content:space-between;
+}
+
+.oddbtn:hover{
+  border-color:#00d084;
+}
+
+.oddbtn.selected{
+  border-color:#00d084;
+  background:#12372c;
+}
+
+.stake{
+  width:100%;
+  box-sizing:border-box;
+  padding:13px;
+  margin-top:8px;
+  border-radius:10px;
+  border:1px solid #344555;
+  background:#0c1218;
+  color:white;
+  font-size:16px;
+}
+
+.place{
+  width:100%;
+  padding:15px;
+  margin-top:15px;
+  border:0;
+  border-radius:12px;
+  background:#00d084;
+  color:#06120d;
+  font-weight:bold;
+  font-size:16px;
+  cursor:pointer;
+}
+
+.result{
+  margin-top:15px;
+  padding:15px;
+  border-radius:12px;
+  background:#16231e;
+  display:none;
+}
+
+.demo{
+  font-size:12px;
+  opacity:.7;
+  margin-top:8px;
+}
+
+.back{
+  display:inline-block;
+  margin-bottom:15px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+
+<div class="brand">
+UNITED <span>ESTIF</span>
+</div>
+
+<nav>
+<a href="/">Home</a>
+<a href="/live">🔴 Live</a>
+<a href="/search">🔎 Search</a>
+<a href="/profile">Profile</a>
+<a href="/my-bets">🎫 My Bets</a>
+</nav>
+
+</header>
+
+
+<main>
+
+<a class="back" href="/">← Back</a>
+
+
+<section class="hero">
+
+<div>
+
+<small>
+{{m.league}} · {{m.status}}
+</small>
+
+<h1>
+{{m.home}} vs {{m.away}}
+</h1>
+
+<p>
+Score:
+<b>{{m.hs}} — {{m.aws}}</b>
+· Minute:
+<b>{{m.minute}}'</b>
+</p>
+
+</div>
+
+<div class="ball">
+⚽
+</div>
+
+</section>
+
+
+<div class="betbox">
+
+<h2>⚽ Betting Markets</h2>
+
+<p class="demo">
+DEMO ONLY — no real money is used.
+</p>
+
+
+<!-- 1X2 -->
+
+<div class="market">
+
+<h3>1X2</h3>
+
+<button class="oddbtn"
+onclick="selectBet('Home Win', {{m.hodd}}, this)">
+
+<span>
+1 — {{m.home}}
+</span>
+
+<b>
+{{m.hodd}}
+</b>
+
+</button>
+
+
+<button class="oddbtn"
+onclick="selectBet('Draw', {{m.draw}}, this)">
+
+<span>
+X — Draw
+</span>
+
+<b>
+{{m.draw}}
+</b>
+
+</button>
+
+
+<button class="oddbtn"
+onclick="selectBet('Away Win', {{m.aodd}}, this)">
+
+<span>
+2 — {{m.away}}
+</span>
+
+<b>
+{{m.aodd}}
+</b>
+
+</button>
+
+</div>
+
+
+<!-- DOUBLE CHANCE -->
+
+<div class="market">
+
+<h3>Double Chance</h3>
+
+<button class="oddbtn"
+onclick="selectBet('1X',1.30,this)">
+
+<span>1X</span>
+<b>1.30</b>
+
+</button>
+
+
+<button class="oddbtn"
+onclick="selectBet('X2',1.35,this)">
+
+<span>X2</span>
+<b>1.35</b>
+
+</button>
+
+
+<button class="oddbtn"
+onclick="selectBet('12',1.25,this)">
+
+<span>12</span>
+<b>1.25</b>
+
+</button>
+
+</div>
+
+
+<!-- TOTAL GOALS -->
+
+<div class="market">
+
+<h3>Total Goals</h3>
+
+<button class="oddbtn"
+onclick="selectBet('Over 1.5',1.28,this)">
+
+<span>Over 1.5</span>
+<b>1.28</b>
+
+</button>
+
+
+<button class="oddbtn"
+onclick="selectBet('Over 2.5',1.85,this)">
+
+<span>Over 2.5</span>
+<b>1.85</b>
+
+</button>
+
+
+<button class="oddbtn"
+onclick="selectBet('Under 2.5',1.90,this)">
+
+<span>Under 2.5</span>
+<b>1.90</b>
+
+</button>
+
+</div>
+
+
+<!-- BTTS -->
+
+<div class="market">
+
+<h3>Both Teams To Score</h3>
+
+<button class="oddbtn"
+onclick="selectBet('BTTS Yes',1.72,this)">
+
+<span>Yes</span>
+<b>1.72</b>
+
+</button>
+
+
+<button class="oddbtn"
+onclick="selectBet('BTTS No',1.95,this)">
+
+<span>No</span>
+<b>1.95</b>
+
+</button>
+
+</div>
+
+
+<!-- BET SLIP -->
+
+<div class="betbox">
+
+<h2>🎫 Bet Slip</h2>
+
+<div id="selected">
+No selection yet.
+</div>
+
+
+<label>
+Stake (Demo ETB)
+</label>
+
+<input
+id="stake"
+class="stake"
+type="number"
+min="1"
+step="1"
+placeholder="Enter stake"
+oninput="calculate()"
+>
+
+
+<p>
+Odds:
+<b id="odds">—</b>
+</p>
+
+
+<p>
+Potential Return:
+<strong id="return">ETB 0.00</strong>
+</p>
+
+
+<button class="place" onclick="placeBet()">
+🎯 Place Demo Bet
+</button>
+
+
+<div id="result" class="result">
+</div>
+
+</div>
+
+</div>
+
+</main>
+
+
+<script>
+
+let selected = null;
+
+let selectedOdds = 0;
+
+
+function selectBet(selection, odds, button){
+
+selected = selection;
+
+selectedOdds = odds;
+
+
+document
+.querySelectorAll(".oddbtn")
+.forEach(btn => btn.classList.remove("selected"));
+
+
+button.classList.add("selected");
+
+
+document.getElementById("selected").innerText =
+"Selected: " + selection;
+
+
+document.getElementById("odds").innerText =
+odds.toFixed(2);
+
+
+calculate();
+
+}
+
+
+function calculate(){
+
+const stake =
+parseFloat(
+document.getElementById("stake").value
+) || 0;
+
+
+const result =
+stake * selectedOdds;
+
+
+document.getElementById("return").innerText =
+"ETB " + result.toFixed(2);
+
+}
+
+
+async function placeBet(){
+
+if(!selected){
+
+alert("Please select an outcome first.");
+
+return;
+
+}
+
+
+const stake =
+parseFloat(
+document.getElementById("stake").value
+);
+
+
+if(!stake || stake <= 0){
+
+alert("Please enter a valid stake.");
+
+return;
+
+}
+
+
+const response =
+await fetch("/api/demo-bet",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+
+match_id: {{m.id}},
+
+selection: selected,
+
+stake: stake,
+
+odds: selectedOdds
+
+})
+
+});
+
+
+const data =
+await response.json();
+
+
+if(response.status === 401){
+
+window.location = "/login";
+
+return;
+
+}
+
+
+const result =
+document.getElementById("result");
+
+
+result.style.display = "block";
+
+
+if(!response.ok){
+
+result.innerText =
+"❌ " + (data.error || "Bet failed");
+
+return;
+
+}
+
+
+result.innerHTML =
+
+"✅ Demo bet placed successfully!<br><br>" +
+
+"<b>Ticket:</b> " +
+data.ticket +
+
+"<br><b>Stake:</b> ETB " +
+Number(data.stake).toFixed(2) +
+
+"<br><b>Odds:</b> " +
+Number(data.odds).toFixed(2) +
+
+"<br><b>Potential Return:</b> ETB " +
+Number(data.potential_return).toFixed(2) +
+
+"<br><br>" +
+
+"<a href='/my-bets'>🎫 View My Bets</a>";
+
+}
+
+</script>
+
+</body>
+</html>

@@ -1,81 +1,414 @@
-from flask import Flask, render_template, jsonify, request, session, redirect
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3, os
-app=Flask(__name__); app.secret_key=os.environ.get("UNITED_ESTIF_SECRET","change-this-secret")
-DB="united_estif.db"
-def db():
-    c=sqlite3.connect(DB); c.row_factory=sqlite3.Row; return c
-def init():
-    c=db()
-    c.executescript("""CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,username TEXT UNIQUE,password TEXT,balance REAL DEFAULT 0);
-    CREATE TABLE IF NOT EXISTS matches(id INTEGER PRIMARY KEY,league TEXT,home TEXT,away TEXT,status TEXT,minute INTEGER DEFAULT 0,hs INTEGER DEFAULT 0,aws INTEGER DEFAULT 0,hodd REAL,draw REAL,aodd REAL,active INTEGER DEFAULT 1);
-    CREATE TABLE IF NOT EXISTS favorites(user_id INTEGER,match_id INTEGER,UNIQUE(user_id,match_id));
-    CREATE TABLE IF NOT EXISTS bets(id INTEGER PRIMARY KEY, user_id INTEGER, stake REAL, odds REAL, status TEXT DEFAULT 'PENDING');""")
-    if c.execute("SELECT COUNT(*) n FROM matches").fetchone()["n"]==0:
-        data=[("Premier League","Manchester United","Manchester City","SCHEDULED",0,0,0,2.25,3.45,2.55),
-        ("La Liga","Real Madrid","Barcelona","LIVE",67,1,1,2.10,3.60,2.75),
-        ("Serie A","Inter","Milan","SCHEDULED",0,0,0,2.00,3.40,3.10),
-        ("Bundesliga","Bayern Munich","Dortmund","FINISHED",90,3,1,1.55,4.50,5.20)]
-        c.executemany("INSERT INTO matches(league,home,away,status,minute,hs,aws,hodd,draw,aodd) VALUES(?,?,?,?,?,?,?,?,?,?)",data)
-    c.commit(); c.close()
-init()
+import sqlite3
+import os
+import secrets
 
-@app.get("/")
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
+
+DB = "united_estif.db"
+DEMO_START_BALANCE = 1000.0
+MAX_DEMO_STAKE = 1000.0
+
+
+def db():
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = db()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            balance REAL DEFAULT 1000
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS matches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            league TEXT,
+            home TEXT,
+            away TEXT,
+            status TEXT,
+            hs INTEGER DEFAULT 0,
+            aws INTEGER DEFAULT 0,
+            minute INTEGER DEFAULT 0,
+            hodd REAL,
+            draw REAL,
+            aodd REAL,
+            active INTEGER DEFAULT 1
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS favorites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            match_id INTEGER,
+            UNIQUE(user_id, match_id)
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            match_id INTEGER,
+            selection TEXT,
+            stake REAL,
+            odds REAL,
+            potential_return REAL,
+            status TEXT DEFAULT 'PENDING',
+            ticket TEXT UNIQUE
+        )
+    """)
+
+    # Add missing columns if the old V20 database already exists
+    columns = [r["name"] for r in conn.execute("PRAGMA table_info(bets)").fetchall()]
+
+    for name, definition in [
+        ("match_id", "INTEGER"),
+        ("selection", "TEXT"),
+        ("potential_return", "REAL"),
+        ("ticket", "TEXT")
+    ]:
+        if name not in columns:
+            conn.execute(f"ALTER TABLE bets ADD COLUMN {name} {definition}")
+
+    count = conn.execute("SELECT COUNT(*) AS c FROM matches").fetchone()["c"]
+
+    if count == 0:
+        matches = [
+            ("Premier League", "Manchester United", "Manchester City",
+             "SCHEDULED", 0, 0, 0, 2.25, 3.45, 2.55, 1),
+
+            ("La Liga", "Real Madrid", "Barcelona",
+             "LIVE", 1, 1, 67, 2.10, 3.60, 2.75, 1),
+
+            ("Serie A", "Inter", "Milan",
+             "SCHEDULED", 0, 0, 0, 2.00, 3.40, 3.10, 1),
+
+            ("Bundesliga", "Bayern Munich", "Dortmund",
+             "FINISHED", 3, 1, 90, 1.55, 4.50, 5.20, 1)
+        ]
+
+        conn.executemany("""
+            INSERT INTO matches
+            (league, home, away, status, hs, aws, minute,
+             hodd, draw, aodd, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, matches)
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+@app.route("/")
 def home():
-    return render_template("index.html",matches=db().execute("SELECT * FROM matches WHERE active=1 ORDER BY CASE status WHEN 'LIVE' THEN 0 ELSE 1 END,id").fetchall(), user=session.get("user"))
-@app.get("/live")
-def live(): return render_template("live.html")
-@app.get("/api/live")
-def api_live(): return jsonify(matches=[dict(x) for x in db().execute("SELECT * FROM matches WHERE active=1 AND status='LIVE'").fetchall()])
-@app.get("/search")
+    conn = db()
+    matches = conn.execute(
+        "SELECT * FROM matches WHERE active=1 ORDER BY id DESC"
+    ).fetchall()
+    conn.close()
+    return render_template("index.html", matches=matches)
+
+
+@app.route("/live")
+def live():
+    conn = db()
+    matches = conn.execute(
+        "SELECT * FROM matches WHERE status='LIVE' AND active=1"
+    ).fetchall()
+    conn.close()
+    return render_template("live.html", matches=matches)
+
+
+@app.route("/api/live")
+def api_live():
+    conn = db()
+    matches = conn.execute(
+        "SELECT * FROM matches WHERE status='LIVE' AND active=1"
+    ).fetchall()
+    conn.close()
+
+    return jsonify([dict(m) for m in matches])
+
+
+@app.route("/search")
 def search():
-    q=request.args.get("q","").strip(); like=f"%{q}%"
-    rows=db().execute("SELECT * FROM matches WHERE active=1 AND (home LIKE ? OR away LIKE ? OR league LIKE ?)",(like,like,like)).fetchall()
-    return render_template("search.html",matches=rows,q=q)
-@app.get("/favorites")
+    q = request.args.get("q", "").strip()
+
+    conn = db()
+
+    if q:
+        matches = conn.execute("""
+            SELECT * FROM matches
+            WHERE active=1
+            AND (
+                home LIKE ?
+                OR away LIKE ?
+                OR league LIKE ?
+            )
+        """, (f"%{q}%", f"%{q}%", f"%{q}%")).fetchall()
+    else:
+        matches = []
+
+    conn.close()
+
+    return render_template(
+        "search.html",
+        matches=matches,
+        q=q
+    )
+
+
+@app.route("/favorites")
 def favorites():
-    if not session.get("uid"): return redirect("/login")
-    rows=db().execute("SELECT m.* FROM matches m JOIN favorites f ON f.match_id=m.id WHERE f.user_id=?",(session["uid"],)).fetchall()
-    return render_template("favorites.html",matches=rows)
-@app.post("/api/favorite/<int:mid>")
-def fav(mid):
-    if not session.get("uid"): return jsonify(error="login_required"),401
-    c=db(); row=c.execute("SELECT 1 FROM favorites WHERE user_id=? AND match_id=?",(session["uid"],mid)).fetchone()
-    if row: c.execute("DELETE FROM favorites WHERE user_id=? AND match_id=?",(session["uid"],mid)); saved=False
-    else: c.execute("INSERT OR IGNORE INTO favorites VALUES(?,?)",(session["uid"],mid)); saved=True
-    c.commit(); return jsonify(saved=saved)
-@app.get("/match/<int:mid>")
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    conn = db()
+
+    matches = conn.execute("""
+        SELECT m.*
+        FROM matches m
+        JOIN favorites f ON f.match_id=m.id
+        WHERE f.user_id=?
+        ORDER BY m.id DESC
+    """, (session["user_id"],)).fetchall()
+
+    conn.close()
+
+    return render_template("favorites.html", matches=matches)
+
+
+@app.route("/api/favorite/<int:mid>", methods=["POST"])
+def favorite(mid):
+    if "user_id" not in session:
+        return jsonify({"error": "login_required"}), 401
+
+    uid = session["user_id"]
+
+    conn = db()
+
+    exists = conn.execute("""
+        SELECT id FROM favorites
+        WHERE user_id=? AND match_id=?
+    """, (uid, mid)).fetchone()
+
+    if exists:
+        conn.execute(
+            "DELETE FROM favorites WHERE id=?",
+            (exists["id"],)
+        )
+        saved = False
+    else:
+        conn.execute("""
+            INSERT OR IGNORE INTO favorites(user_id, match_id)
+            VALUES (?, ?)
+        """, (uid, mid))
+        saved = True
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"saved": saved})
+
+
+@app.route("/match/<int:mid>")
 def match(mid):
-    m=db().execute("SELECT * FROM matches WHERE id=?",(mid,)).fetchone()
-    return render_template("match.html",m=m)
-@app.get("/login")
-def login(): return render_template("login.html")
-@app.post("/login")
-def do_login():
-    u=request.form["username"]; p=request.form["password"]; row=db().execute("SELECT * FROM users WHERE username=?",(u,)).fetchone()
-    if row and check_password_hash(row["password"],p): session["uid"]=row["id"]; session["user"]=u; return redirect("/")
-    return render_template("login.html",error="Invalid login")
-@app.post("/register")
+    conn = db()
+
+    m = conn.execute(
+        "SELECT * FROM matches WHERE id=?",
+        (mid,)
+    ).fetchone()
+
+    conn.close()
+
+    if not m:
+        return "Match not found", 404
+
+    return render_template("match.html", m=m)
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        conn = db()
+
+        user = conn.execute(
+            "SELECT * FROM users WHERE username=?",
+            (username,)
+        ).fetchone()
+
+        conn.close()
+
+        if user and check_password_hash(user["password"], password):
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            return redirect(url_for("home"))
+
+        return render_template(
+            "login.html",
+            error="Invalid username or password"
+        )
+
+    return render_template("login.html")
+
+
+@app.route("/register", methods=["POST"])
 def register():
-    u=request.form["username"]; p=request.form["password"]; c=db()
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+
+    if not username or not password:
+        return "Username and password are required", 400
+
+    conn = db()
+
     try:
-        c.execute("INSERT INTO users(username,password,balance) VALUES(?,?,?)",(u,generate_password_hash(p),1000)); c.commit()
-    except sqlite3.IntegrityError: return render_template("login.html",error="Username already exists")
-    session["uid"]=c.execute("SELECT id FROM users WHERE username=?",(u,)).fetchone()["id"]; session["user"]=u; return redirect("/")
-@app.get("/logout")
-def logout(): session.clear(); return redirect("/")
-@app.get("/profile")
+        cur = conn.execute("""
+            INSERT INTO users(username, password, balance)
+            VALUES (?, ?, ?)
+        """, (
+            username,
+            generate_password_hash(password),
+            DEMO_START_BALANCE
+        ))
+
+        conn.commit()
+        uid = cur.lastrowid
+
+    except sqlite3.IntegrityError:
+        conn.close()
+        return "Username already exists", 400
+
+    conn.close()
+
+    session["user_id"] = uid
+    session["username"] = username
+
+    return redirect(url_for("home"))
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("home"))
+
+
+@app.route("/profile")
 def profile():
-    if not session.get("uid"): return redirect("/login")
-    u=db().execute("SELECT * FROM users WHERE id=?",(session["uid"],)).fetchone()
-    return render_template("profile.html",u=u)
-@app.get("/admin")
-def admin():
-    return render_template("admin.html",matches=db().execute("SELECT * FROM matches ORDER BY id").fetchall())
-@app.post("/admin/match/<int:mid>")
-def admin_match(mid):
-    f=request.form; c=db()
-    c.execute("UPDATE matches SET status=?,minute=?,hs=?,aws=?,hodd=?,draw=?,aodd=? WHERE id=?",
-              (f["status"],int(f["minute"]),int(f["hs"]),int(f["aws"]),float(f["hodd"]),float(f["draw"]),float(f["aodd"]),mid)); c.commit()
-    return redirect("/admin")
-if __name__=="__main__": app.run(debug=True)
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    conn = db()
+
+    user = conn.execute(
+        "SELECT * FROM users WHERE id=?",
+        (session["user_id"],)
+    ).fetchone()
+
+    conn.close()
+
+    return render_template("profile.html", user=user)
+
+
+# =========================
+# V21 DEMO BET PLACEMENT
+# =========================
+
+@app.route("/api/demo-bet", methods=["POST"])
+def demo_bet():
+
+    if "user_id" not in session:
+        return jsonify({
+            "error": "login_required"
+        }), 401
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        match_id = int(data.get("match_id"))
+        stake = float(data.get("stake"))
+        odds = float(data.get("odds"))
+    except (TypeError, ValueError):
+        return jsonify({
+            "error": "Invalid bet information"
+        }), 400
+
+    selection = str(
+        data.get("selection", "")
+    ).strip()
+
+    if not selection:
+        return jsonify({
+            "error": "Please select an outcome"
+        }), 400
+
+    if stake <= 0:
+        return jsonify({
+            "error": "Stake must be greater than 0"
+        }), 400
+
+    if stake > MAX_DEMO_STAKE:
+        return jsonify({
+            "error": "Maximum demo stake is ETB 1000"
+        }), 400
+
+    if odds <= 1:
+        return jsonify({
+            "error": "Invalid odds"
+        }), 400
+
+    conn = db()
+
+    m = conn.execute("""
+        SELECT * FROM matches
+        WHERE id=? AND active=1
+    """, (match_id,)).fetchone()
+
+    if not m:
+        conn.close()
+        return jsonify({
+            "error": "Match is not available"
+        }), 400
+
+    user = conn.execute("""
+        SELECT * FROM users WHERE id=?
+    """, (session["user_id"],)).fetchone()
+
+    if not user:
+        conn.close()
+        return jsonify({
+            "error": "User not found"
+        }), 400
+
+    if user["balance"] < stake:
+        conn.close()
+        return jsonify({
+            "error": "Insufficient demo balance"
+        }), 400
+
+    potential_return = round(stake * odds, 2)
+
+    ticket = "UE-" + secrets.token_hex(4).upper()
+
+    conn.execute("""
+        UPDATE users
+        SET balance = balance - ?
+        WHERE id=?

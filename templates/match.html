@@ -1,103 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{m.home}} vs {{m.away}} | UNITED ESTIF</title>
+<title>Match Center | UNITED ESTIF</title>
 <link rel="stylesheet" href="/static/style.css">
 
 <style>
-.betbox{
-  margin-top:20px;
-  padding:20px;
-  border-radius:18px;
-  background:#111820;
-  border:1px solid #263442;
-}
-
-.market{
-  margin-bottom:20px;
-}
-
-.market h3{
-  margin-bottom:10px;
-}
-
-.oddbtn{
-  width:100%;
-  padding:13px;
-  margin:5px 0;
-  border:1px solid #344555;
-  border-radius:12px;
-  background:#18232e;
-  color:white;
-  cursor:pointer;
-  display:flex;
-  justify-content:space-between;
-}
-
-.oddbtn:hover{
-  border-color:#00d084;
-}
-
-.oddbtn.selected{
-  border-color:#00d084;
-  background:#12372c;
-}
-
-.stake{
-  width:100%;
-  box-sizing:border-box;
-  padding:13px;
-  margin-top:8px;
-  border-radius:10px;
-  border:1px solid #344555;
-  background:#0c1218;
-  color:white;
-  font-size:16px;
-}
-
-.place{
-  width:100%;
-  padding:15px;
-  margin-top:15px;
-  border:0;
-  border-radius:12px;
-  background:#00d084;
-  color:#06120d;
-  font-weight:bold;
-  font-size:16px;
-  cursor:pointer;
-}
-
-.result{
-  margin-top:15px;
-  padding:15px;
-  border-radius:12px;
-  background:#16231e;
-  display:none;
-}
-
-.demo{
-  font-size:12px;
-  opacity:.7;
-  margin-top:8px;
-}
-
-.back{
-  display:inline-block;
-  margin-bottom:15px;
-}
+.slip{margin-top:20px;padding:18px;border-radius:18px;background:#111820;border:1px solid #263442}
+.pick{padding:10px;margin:7px 0;background:#18232e;border-radius:10px}
+.pick button{float:right}
+.oddbtn{width:100%;padding:13px;margin:5px 0;border:1px solid #344555;border-radius:12px;background:#18232e;color:white;display:flex;justify-content:space-between}
+.oddbtn.selected{border-color:#00d084;background:#12372c}
+.stake{width:100%;box-sizing:border-box;padding:13px;border-radius:10px;background:#0c1218;color:white;border:1px solid #344555}
+.place{width:100%;padding:15px;margin-top:12px;border:0;border-radius:12px;background:#00d084;font-weight:bold}
+.demo{font-size:12px;opacity:.7}
 </style>
 </head>
 
 <body>
 
 <header>
-
-<div class="brand">
-UNITED <span>ESTIF</span>
-</div>
-
+<div class="brand">UNITED <span>ESTIF</span></div>
 <nav>
 <a href="/">Home</a>
 <a href="/live">🔴 Live</a>
@@ -105,8 +28,224 @@ UNITED <span>ESTIF</span>
 <a href="/profile">Profile</a>
 <a href="/my-bets">🎫 My Bets</a>
 </nav>
-
 </header>
+
+<main>
+
+<section class="hero">
+<div>
+<small>{{m.league}} · {{m.status}}</small>
+<h1>{{m.home}} vs {{m.away}}</h1>
+<p>Score: <b>{{m.hs}} — {{m.aws}}</b> · {{m.minute}}'</p>
+</div>
+<div class="ball">⚽</div>
+</section>
+
+<div class="slip">
+
+<h2>⚽ Markets</h2>
+<p class="demo">DEMO ONLY</p>
+
+<button class="oddbtn"
+onclick="addPick('Home Win',{{m.hodd}},this)">
+<span>1 — {{m.home}}</span><b>{{m.hodd}}</b>
+</button>
+
+<button class="oddbtn"
+onclick="addPick('Draw',{{m.draw}},this)">
+<span>X — Draw</span><b>{{m.draw}}</b>
+</button>
+
+<button class="oddbtn"
+onclick="addPick('Away Win',{{m.aodd}},this)">
+<span>2 — {{m.away}}</span><b>{{m.aodd}}</b>
+</button>
+
+<button class="oddbtn"
+onclick="addPick('Over 2.5',1.85,this)">
+<span>Over 2.5</span><b>1.85</b>
+</button>
+
+<button class="oddbtn"
+onclick="addPick('Under 2.5',1.90,this)">
+<span>Under 2.5</span><b>1.90</b>
+</button>
+
+<button class="oddbtn"
+onclick="addPick('BTTS Yes',1.72,this)">
+<span>BTTS Yes</span><b>1.72</b>
+</button>
+
+</div>
+
+
+<div class="slip">
+
+<h2>🎫 Bet Slip</h2>
+
+<div id="picks">
+<p>No selections yet.</p>
+</div>
+
+<hr>
+
+<p>
+Combined Odds:
+<b id="totalOdds">1.00</b>
+</p>
+
+<label>Stake — Demo ETB</label>
+
+<input
+id="stake"
+class="stake"
+type="number"
+min="1"
+placeholder="Enter stake"
+oninput="calculate()"
+>
+
+<p>
+Potential Return:
+<b id="return">ETB 0.00</b>
+</p>
+
+<button class="place" onclick="placeBet()">
+🎯 Place Demo Bet
+</button>
+
+<p id="message"></p>
+
+</div>
+
+</main>
+
+
+<script>
+
+let picks=[];
+
+function addPick(selection,odds,button){
+
+let exists=picks.find(x=>x.selection===selection);
+
+if(exists){
+picks=picks.filter(x=>x.selection!==selection);
+button.classList.remove("selected");
+}else{
+picks.push({selection,odds});
+button.classList.add("selected");
+}
+
+render();
+}
+
+function render(){
+
+let box=document.getElementById("picks");
+
+if(picks.length===0){
+box.innerHTML="<p>No selections yet.</p>";
+}else{
+
+box.innerHTML=picks.map((p,i)=>`
+<div class="pick">
+${p.selection} — <b>${p.odds.toFixed(2)}</b>
+<button onclick="removePick(${i})">✕</button>
+</div>
+`).join("");
+
+}
+
+let combined=picks.reduce((a,p)=>a*p.odds,1);
+
+document.getElementById("totalOdds").innerText=
+combined.toFixed(2);
+
+calculate();
+}
+
+function removePick(i){
+
+picks.splice(i,1);
+
+document.querySelectorAll(".oddbtn")
+.forEach(b=>b.classList.remove("selected"));
+
+render();
+}
+
+function calculate(){
+
+let stake=parseFloat(
+document.getElementById("stake").value
+)||0;
+
+let odds=picks.reduce((a,p)=>a*p.odds,1);
+
+document.getElementById("return").innerText=
+"ETB "+(stake*odds).toFixed(2);
+}
+
+async function placeBet(){
+
+if(picks.length===0){
+alert("Select at least one outcome.");
+return;
+}
+
+let stake=parseFloat(
+document.getElementById("stake").value
+);
+
+if(!stake || stake<=0){
+alert("Enter a valid stake.");
+return;
+}
+
+if(picks.length>1){
+alert("Multiple selections are shown in the demo slip. Current demo API records one selection per ticket.");
+return;
+}
+
+let p=picks[0];
+
+let r=await fetch("/api/demo-bet",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+match_id:{{m.id}},
+selection:p.selection,
+stake:stake,
+odds:p.odds
+})
+});
+
+let data=await r.json();
+
+if(r.status===401){
+location="/login";
+return;
+}
+
+let msg=document.getElementById("message");
+
+if(!r.ok){
+msg.innerText="❌ "+data.error;
+return;
+}
+
+msg.innerHTML=
+"✅ Ticket: <b>"+data.ticket+
+"</b><br>Potential Return: ETB "+
+Number(data.potential_return).toFixed(2)+
+"<br><br><a href='/my-bets'>🎫 My Bets</a>";
+}
+
+</script>
+
+</body>
+</html></header>
 
 
 <main>

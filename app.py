@@ -422,7 +422,6 @@ def profile():
 
     return render_template("profile.html", user=user)
 
-
 # =========================
 # V22 MULTIPLE BET API
 # =========================

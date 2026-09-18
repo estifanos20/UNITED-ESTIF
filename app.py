@@ -412,7 +412,7 @@ def profile():
 
     conn = db()
     user = conn.execute(
-        "SELECT * FROM users WHERE id = ?",
+        "SELECT id, username, balance FROM users WHERE id = ?",
         (session["user_id"],)
     ).fetchone()
     conn.close()
